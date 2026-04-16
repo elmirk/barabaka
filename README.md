@@ -65,3 +65,20 @@ curl -X POST http://localhost:8886/assembled-products -H "Content-Type: applicat
 - в коде остались местами io format - использовались для простого дебага, ну и для понимания что процесс опроса идет периодически
 
 Если надо запустить приложение без прокси , то в модуле api_client.erl надо закомментировать строку 15 и расскоментировать 16 строку. Это в принципе можно через переменные окружения реализовать или еще добавить гибкости прир старте.
+
+
+TODO
+
+top worker gen server receive in handle info 
+
+Info received in handle_info in top_worker {ssl_closed,
+                                            {sslsocket,#Port<0.265>,
+                                             <0.1396.0>,<0.1395.0>,gen_tcp,
+                                             tls_gen_connection,
+                                             #Ref<0.3468979049.452591617.171690>,
+                                             undefined}}
+
+
+may be need to close sockets or something in fetch_data function, when fetching data from endpoint
+
+move Endpoint from src to env or to OS env
