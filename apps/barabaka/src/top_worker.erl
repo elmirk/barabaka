@@ -44,7 +44,19 @@ init([]) ->
 
   self() ! start_server,
 
-  {ok, #{tref => TRef, timer_int => ?TIMER, total => 0}}.
+  ProxyFlag = case os:getenv("WITH_PROXY") of
+
+    false ->
+
+      false;
+
+    _V ->
+
+      true
+
+  end,
+
+  {ok, #{proxy_flag => ProxyFlag, tref => TRef, timer_int => ?TIMER, total => 0}}.
 
 
 handle_call(get_status, _From, State) ->
@@ -57,7 +69,7 @@ handle_cast(_Msg, State) ->
   {noreply, State}.
 
 
-handle_info(start_server, State) ->
+handle_info( start_server, State) ->
 
   Rez = server:start22(?PORT),
   io:format("server start22 rezult ~p~n", [Rez]),
@@ -140,7 +152,7 @@ handle_info({set_timer, _Pid, #{<<"cmd">> := <<"set_timer">>,<<"value">> := T} =
   {noreply, State#{tref => NewTRef, timer_int => T}};
 
 %% timer ticks handling
-handle_info({timeout, Tref, timer_tick_msg}, #{timer_int := Tint, total := Total}= State) ->
+handle_info({timeout, Tref, timer_tick_msg}, #{proxy_flag := Pflag, timer_int := Tint, total := Total}= State) ->
 
   %% NewTRef = erlang:start_timer(Tint, self(), timer_tick_msg),
   
@@ -148,7 +160,7 @@ handle_info({timeout, Tref, timer_tick_msg}, #{timer_int := Tint, total := Total
     io:format("TIMESTAMP when insert to TS table: ~p~n", [FetchTS]),
     ets:insert(timestamps, {FetchTS}),
 
-  case api_client:fetch_data(FetchTS) of
+  case api_client:fetch_data(FetchTS, Pflag) of
     {error,econnrefused} ->  %% something wrong with connection to Endpoint
       io:format("failed to fetch data from endpoint, timer removed! ~n"),
       %% remove timer, and stop fetching, and set status = stopped

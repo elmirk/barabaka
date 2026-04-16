@@ -1,10 +1,10 @@
 -module(api_client).
--export([get_ets/0, test2/0, test/0, fetch_data/1]).
+-export([get_ets/0, test2/0, test/0, fetch_data/2]).
 
-fetch_data(TS) -> get_data(TS, 0, 0, -1).
+fetch_data(TS, Pflag) -> get_data(Pflag, TS, 0, 0, -1).
 
-get_data(_TS,_, Total, Total) -> Total;
-get_data(TS, Skip, Processed, Total) ->
+get_data(_Pflag, _TS,_, Total, Total) -> Total;
+get_data(Pflag, TS, Skip, Processed, Total) ->
     
     %%application:ensure_all_started(hackney), uncomment when no release
     SkipBin = integer_to_binary(Skip),
@@ -12,14 +12,22 @@ get_data(TS, Skip, Processed, Total) ->
     Method = get,
     Headers = [{<<"Content-Type">>, <<"application/json">>}],
     Payload = <<>>,
-    Options = [{proxy, {socks5, "127.0.0.1", 1080}}, {with_body, true}],
-  %%Options = [{with_body, true}],
+
+     Options = 
+        if Pflag ->
+          [{proxy, {socks5, "127.0.0.1", 1080}},
+            {with_body, true}];
+
+          true ->
+             [{with_body, true}]
+
+          end,
 
     case hackney:request(Method, Url, Headers, Payload, Options) of
         {ok, StatusCode, _RespHeaders, Body} ->
             %%io:format("RESP headers ~p~n", [_RespHeaders]),
             {ok, Limit, Num, Total1} = handle_response(TS, StatusCode, Body),
-            get_data(TS, Skip + Limit, Processed + Num, Total1);
+            get_data(Pflag, TS, Skip + Limit, Processed + Num, Total1);
 
         {error, Reason} ->
             {error, Reason}
