@@ -16,6 +16,7 @@
 
 -define(SERVER, ?MODULE).
 -define(TIMER, 15000).
+-define(GUARD_INTERVAL, 15000). %% minimal timer value to set, to protect from overflow or something
 -define(PORT, 8886).
 
 -include_lib("stdlib/include/ms_transform.hrl").
@@ -141,15 +142,23 @@ handle_info({ok, _Pid, return_assembled_products3, #{id := Id}}, #{socket := Soc
   
   {noreply, State};
 
+
+%% process set_timer command from API client
 handle_info({set_timer, _Pid, #{<<"cmd">> := <<"set_timer">>,<<"value">> := T} = Data }, #{tref := Tref, socket := Socket} = State) ->
 
-  io:format("set timer command received, new Timer value is: ~p~n", [T]),
-  erlang:cancel_timer(Tref),
-  NewTRef = erlang:start_timer(T, self(), timer_tick_msg),
-  Result = #{result => ok, value => T},
-  gen_tcp:send(Socket, server:prepare_response1(json:encode(Result))),
-
-  {noreply, State#{tref => NewTRef, timer_int => T}};
+  
+  if T < ?GUARD_INTERVAL ->
+    Result = #{result => error, value => <<"too small value">>},
+    gen_tcp:send(Socket, server:prepare_response1(json:encode(Result))),
+    {noreply, State};
+    true ->
+      io:format("set timer command received, new Timer value is: ~p~n", [T]),
+      erlang:cancel_timer(Tref),
+      NewTRef = erlang:start_timer(T, self(), timer_tick_msg),
+      Result = #{result => ok, value => T},
+      gen_tcp:send(Socket, server:prepare_response1(json:encode(Result))),
+      {noreply, State#{tref => NewTRef, timer_int => T}}
+end;
 
 %% timer ticks handling
 handle_info({timeout, Tref, timer_tick_msg}, #{proxy_flag := Pflag, timer_int := Tint, total := Total}= State) ->
